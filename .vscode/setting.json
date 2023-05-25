@@ -1,0 +1,14 @@
+{
+    "python.linting.mypyEnabled": true,
+    "python.linting.enabled": true,
+    "python.linting.mypyArgs": [
+        "--ignore-missing-imports",
+        "--follow-imports=silent",
+        "--show-column-numbers",
+        "--check-untyped-defs", 
+        "--strict-optional"
+    ],
+    "editor.tabSize": 4,
+    "workbench.editorLargeFileConfirmation": 2048,
+    "editor.largeFileOptimizations": false
+}
