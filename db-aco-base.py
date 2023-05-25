@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, ClassVar, Self, TYPE_CHECKING, cast
+from typing import Dict, Tuple, ClassVar, Self, TYPE_CHECKING, cast, Any
 import random
 import traceback
 import math
@@ -18,7 +18,15 @@ class Params:
         self.simulation_count = simulation_count # シミュレーション回数
     
     def generate_insert_query(self)-> str:
-        return f"INSERT INTO parameters (numberofnodes, optimalpathlength, volatility, minpheromone, maxpheromone, ttl, bata, generationlimit, simulationlimit) VALUES ({self.num_nodes}, {self.optimal_route_length}, {self.volatility}, {self.pheromone_min}, {self.pheromone_max}, {self.ttl}, {self.bata}, {self.generation_limit}, {self.simulation_count});"
+        return f"INSERT INTO parameters (numberofnodes, optimalpathlength, volatility, minpheromone, maxpheromone, ttl, bata, generationlimit) VALUES ({self.num_nodes}, {self.optimal_route_length}, {self.volatility}, {self.pheromone_min}, {self.pheromone_max}, {self.ttl}, {self.bata}, {self.generation_limit},);"
+    
+    def generate_insert_or_return_id_query(self) -> str:
+        # 既存の行と競合する場合にidを返すクエリ
+        return f"INSERT INTO parameters (numberofnodes, optimalpathlength, volatility, minpheromone, maxpheromone, ttl, bata, generationlimit) VALUES ({self.num_nodes}, {self.optimal_route_length}, {self.volatility}, {self.pheromone_min}, {self.pheromone_max}, {self.ttl}, {self.bata}, {self.generation_limit}) ON CONFLICT (numberofnodes, optimalpathlength, volatility, minpheromone, maxpheromone, ttl, bata, generationlimit) DO NOTHING RETURNING parameterid;"
+    
+    def generate_select_query(self) -> str:
+        return f"SELECT parameterid FROM parameters WHERE numberofnodes = {self.num_nodes} AND optimalpathlength = {self.optimal_route_length} AND volatility = {self.volatility} AND minpheromone = {self.pheromone_min} AND maxpheromone = {self.pheromone_max} AND ttl = {self.ttl} AND bata = {self.bata} AND generationlimit = {self.generation_limit};"
+
 
 class Link:
     def __init__(self, width:int, feromone:float) -> None:
@@ -254,7 +262,7 @@ class DBLogger:
         self.cursor.execute(query, params)
 
     # 任意のクエリを実行し、結果を返す
-    def fetch_result(self, query:int, params=None) -> list:
+    def fetch_result(self, query:int, params=None) -> list[tuple[Any]]:
         self.cursor.execute(query, params)
         return self.cursor.fetchall()
 
@@ -263,6 +271,10 @@ class DBLogger:
         self.cursor.execute(query, params)
         self.cursor.execute("SELECT LASTVAL();")
         return self.cursor.fetchone()[0]
+    
+    def insert_conflict(self, query:int, params=None) -> int:
+        id = self.cursor.execute(query, params)
+        return id
 
     # 変更を確定
     def commit(self):
@@ -279,9 +291,9 @@ class DBLogger:
         
 
 class Simulation:
-    def __init__(self, logger:DBLogger, params_id) -> None:
+    def __init__(self, logger:DBLogger, params:Params) -> None:
         self.id = None
-        self.params_id:int = params_id
+        self.params:Params = params
         self.logger = logger
 
         self.network = Network()
@@ -291,13 +303,11 @@ class Simulation:
 
         self.generation_count:int = 0
 
-
-    def generate_insert_query(self, params_id) -> str:
-        return f'INSERT INTO simulations (ParameterID) VALUES ({params_id});'
-        
-
-if __name__ == "__main__":
+    def generate_insert_query(self) -> str:
+        return f'INSERT INTO simulations (ParameterID) VALUES ({self.params.id});'
     
+    
+def main():
     try:
         # パラメータを設定
         params = Params(num_nodes=5, 
@@ -308,7 +318,7 @@ if __name__ == "__main__":
                         ttl=100, 
                         bata=1, 
                         generation_limit=2, 
-                        simulation_count=2)
+                        simulation_count=1)
 
         # DBLoggerインスタンス作成
         dblogger = DBLogger("asaken_n40","asaken_N40","localhost","simulation","5432")
@@ -316,17 +326,20 @@ if __name__ == "__main__":
         dblogger.connect()
 
         # パラメータを登録&パラメータIDを取得
-        params.id = dblogger.insert_and_get_id(params.generate_insert_query())
+        params.id = dblogger.insert_conflict(params.generate_insert_or_return_id_query())
         print(params.id)
+        if params.id is None:
+            params.id:int = dblogger.fetch_result(params.generate_select_query())[0][0]
+            print(params.id)
         
         # シミュレーションをparams.simulation_count回実行
         for _ in range(params.simulation_count):
 
             # Simulationインスタンス作成
-            simulation = Simulation(dblogger, params.id)
+            simulation = Simulation(dblogger, params)
 
             # シミュレーションを登録&シミュレーションIDを取得
-            simulation.id = dblogger.insert_and_get_id(simulation.generate_insert_query(params.id))
+            simulation.id = dblogger.insert_and_get_id(simulation.generate_insert_query())
 
             # 任意の個数ノードインスタンスを作成
             simulation.network.yield_nodes(params)
@@ -391,3 +404,7 @@ if __name__ == "__main__":
 
     finally:
         dblogger.close()
+        
+
+if __name__ == "__main__":
+    main()
