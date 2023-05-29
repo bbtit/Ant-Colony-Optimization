@@ -1,3 +1,5 @@
+# オブジェクト指向で書き直したACOのベースプログラム
+# 出力はjson形式
 from typing import Dict, Tuple, ClassVar, Self, TYPE_CHECKING, cast
 import random
 import pprint

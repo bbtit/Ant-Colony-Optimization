@@ -10,6 +10,7 @@ CREATE TABLE Parameters (
     optimalPathLength int,
     bata float
 );
+-- unique制約をつける
 
 CREATE TABLE Simulations (
     SimulationID SERIAL PRIMARY KEY,
@@ -19,7 +20,6 @@ CREATE TABLE Simulations (
 
 CREATE TABLE Generations (
     GenerationID BIGSERIAL PRIMARY KEY,
-    
     SimulationID int,
     FOREIGN KEY (SimulationID) REFERENCES Simulations(SimulationID)
 );
