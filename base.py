@@ -254,7 +254,7 @@ class Network:
         # self.nodesのすべてのNodeのneighborsのLinkのフェロモンを揮発(×params.bata)させる
         for node in self.nodes:
             for link in node.neighbors.values():
-                tmp = math.floor(link.pheromone * params.bata)
+                tmp = math.floor(link.pheromone * params.volatility)
                 if tmp < params.pheromone_min:
                     link.pheromone = params.pheromone_min
                 elif tmp > params.pheromone_max:
