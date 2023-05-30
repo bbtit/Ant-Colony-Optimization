@@ -35,7 +35,7 @@ class Params:
 class Link:
     def __init__(self, width: int, feromone: float) -> None:
         self.width = width
-        self.feromone = feromone
+        self.pheromone = feromone
 
 
 class Node:
@@ -96,7 +96,7 @@ class Ant(Packet):
         unvisited_links = [self.current_node.neighbors[node]
                            for node in self.current_node.neighbors.keys() if node not in self.route]
         unvisited_links_width = [link.width for link in unvisited_links]
-        unvisited_links_pheromone = [link.feromone for link in unvisited_links]
+        unvisited_links_pheromone = [link.pheromone for link in unvisited_links]
         weights = [(width ** params.bata) * pheromone for width,
                    pheromone in zip(unvisited_links_width, unvisited_links_pheromone)]
         next_node = random.choices(unvisited_nodes, weights=weights)[0]
@@ -165,7 +165,7 @@ class Interest(Packet):
         # current_nodeのneighborsにdestinationが含まれていない場合
         # neighborの中で最もフェロモンが多いノードを選択
         next_node = max(
-            unvisited_nodes, key=lambda node: node.neighbors[self.current_node].feromone)
+            unvisited_nodes, key=lambda node: node.neighbors[self.current_node].pheromone)
         self.update_attr(next_node)
         return
 
@@ -248,19 +248,19 @@ class Network:
         # antの辿った経路のフェロモン値にant.route_bottoleneck分を加算する
         for i in range(len(ant.route) - 1):
             ant.route[i].neighbors[ant.route[i + 1]
-                                   ].feromone += ant.route_bottoleneck
+                                   ].pheromone += ant.route_bottoleneck
 
     def volitile_pheromone(self, params: Params) -> None:
         # self.nodesのすべてのNodeのneighborsのLinkのフェロモンを揮発(×params.bata)させる
         for node in self.nodes:
             for link in node.neighbors.values():
-                tmp = math.floor(link.feromone * params.bata)
+                tmp = math.floor(link.pheromone * params.bata)
                 if tmp < params.pheromone_min:
-                    link.feromone = params.pheromone_min
+                    link.pheromone = params.pheromone_min
                 elif tmp > params.pheromone_max:
-                    link.feromone = params.pheromone_max
+                    link.pheromone = params.pheromone_max
                 else:
-                    link.feromone = tmp
+                    link.pheromone = tmp
 
 
 class DBLogger:
@@ -380,7 +380,7 @@ def main(params: Params):
             for startnode in simulation.network.nodes:
                 for endnode, link in node.neighbors.items():
                     dblogger.insert_and_get_id(
-                        f'INSERT INTO connections (GenerationID, StartNodeID, EndNodeID, Pheromone, Width) VALUES ({generation_id},{startnode.id},{endnode.id},{link.feromone},{link.width});')
+                        f'INSERT INTO connections (GenerationID, StartNodeID, EndNodeID, Pheromone, Width) VALUES ({generation_id},{startnode.id},{endnode.id},{link.pheromone},{link.width});')
 
             # antとinterestの生成
             simulation.ant = Ant(
