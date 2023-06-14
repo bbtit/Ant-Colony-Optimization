@@ -9,9 +9,11 @@ import math
 import psycopg2
 from multiprocessing import Pool
 
-# 揮発時ににwidthが小さいほど揮発量を大きくする
+# 揮発時にwidthが小さいほど揮発量を大きくする
+
+
 def volitile_pheromone_based_on_width(self: Network, params: Params) -> None:
-    # self.nodesのすべてのNodeのneighborsのLinkのフェロモンを揮発( × params.bata )させる
+    print("this is volitile_pheromone_based_on_width")
     for node in self.nodes:
         for link in node.neighbors.values():
             rate = 0.89 + (link.width / 1000)

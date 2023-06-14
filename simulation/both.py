@@ -1,12 +1,4 @@
-# 可変フェロモン最小値方式
-# ノードのフェロモン最小値をノードのエッジ数によって変化させる
-# TODO ノードクラスの属性にフェロモン最小値を追加
-# TODO フェロモン最小値をネットワーク作成時の初期値として設定する関数を作成
-# TODO 揮発時にフェロモン最小値以下になった場合はフェロモン最小値にするように変更
-# TODO 新しいデータベースを作成
-# TODO データベースのテーブルを変更
-
-
+# 可変フェロモン最小値方式と可変揮発量方式の両方を用いたシミュレーション
 from base import Params, Link, Node, Packet, Ant, Interest, Rand, Network, DBLogger, Simulation
 from typing import Dict, Tuple, ClassVar, Self, TYPE_CHECKING, cast, Any
 import random
@@ -14,21 +6,19 @@ import traceback
 import math
 import psycopg2
 from multiprocessing import Pool
+from variable_min_pheromone import set_pheromone_based_on_dimension, volitile_pheromone_based_on_dimension
+from variable_volatilization import volitile_pheromone_based_on_width
 
-# ネットワーク作成後にノードの次元数に基づいたフェロモン最小値を代入
-def set_pheromone_based_on_dimension(self: Network, params: Params) -> None:
-    for node in self.nodes:
-        for link in node.neighbors.values():
-            degree = len(node.neighbors)
-            link.pheromone = params.pheromone_min * 3 // degree
-
-# 次元数によるフェロモン最小値を用いたフェロモン揮発
-def volitile_pheromone_based_on_dimension(self: Network, params: Params) -> None:
+# 揮発時にwidthが小さいほど揮発量を大きくかつ
+# 次元数によって可変なフェロモン最小値下回らないようにフェロモン揮発
+def volitile_pheromone_based_on_dimension_and_width(self: Network, params: Params) -> None:
+    print("this is volitile_pheromone_based_on_dimension_and_width")
     for node in self.nodes:
         for link in node.neighbors.values():
             degree = len(node.neighbors)
             floor = params.pheromone_min * 3 * degree
-            tmp = math.floor(link.pheromone * params.bata)
+            rate = 0.89 + (link.width / 1000)
+            tmp = math.floor(link.pheromone * rate)
             if tmp < floor:
                 link.pheromone = floor
             elif tmp > params.pheromone_max:
@@ -37,12 +27,12 @@ def volitile_pheromone_based_on_dimension(self: Network, params: Params) -> None
                 link.pheromone = tmp
 
 def main(params: Params):
-    
+
     # Networkクラスにset_pheromone_based_on_dimensionメソッド追加
     Network.set_pheromone_based_on_dimension = set_pheromone_based_on_dimension
 
     # Networkクラスのvolitile_pheromoneメソッドを差し替え
-    Network.volitile_pheromone = volitile_pheromone_based_on_dimension
+    Network.volitile_pheromone = volitile_pheromone_based_on_dimension_and_width
 
     # ネットワーク作成後にset_pheromone_based_on_dimension()を実行する手順を追加
     try:
@@ -144,15 +134,15 @@ def main(params: Params):
 
 if __name__ == "__main__":
     # パラメータを設定
-    params = Params(num_nodes=5,
-                    optimal_route_length=2,
+    params = Params(num_nodes=100,
+                    optimal_route_length=6,
                     volatility=0.99,
                     pheromone_min=100,
                     pheromone_max=2**20,
                     ttl=100,
                     bata=1,
-                    generation_limit=2,
-                    simulation_count=1)
+                    generation_limit=100,
+                    simulation_count=100)
 
     with Pool() as p:
         p.map(main, [params] * params.simulation_count)
